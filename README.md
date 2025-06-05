@@ -10,12 +10,11 @@ O sistema opera com o seguinte fluxo de dados:
 2.  **ESP2 (Coletor/Retransmissor):** Recebe os dados do ESP1, lê dados do seu próprio sensor, agrega ambas as informações e retransmite a estrutura combinada via ESP-NOW para o ESP3.
 3.  **ESP3 (Coletor Final/Gateway MQTT):** Recebe a estrutura agregada do ESP2, lê dados do seu próprio sensor, adiciona essa informação à estrutura. Em seguida, conecta-se à rede Wi-Fi e publica os dados válidos de todos os três ESPs nos feeds correspondentes da plataforma Adafruit IO via MQTT.
 
-```mermaid
 graph TD
-  A[ESP 1<br>Sensor DHT11<br>Coleta e Envia] -->|ESP-NOW (Dados ESP1)| B(ESP 2<br>Sensor DHT11<br>Recebe, Coleta, Agrega e Envia);
-  B -->|ESP-NOW (Dados ESP1 + ESP2)| C(ESP 3<br>Sensor DHT11<br>Recebe, Coleta, Agrega e Publica);
-  C -->|MQTT| D[Adafruit IO<br>Dashboard];
-```
+  A[ESP 1 - Coleta e envia] -->|ESP-NOW| B[ESP 2 - Agrega e envia]
+  B -->|ESP-NOW| C[ESP 3 - Publica via MQTT]
+  C -->|MQTT| D[Adafruit IO]
+
 
 ## 2. Estrutura de Dados Comum (`struct_message`)
 
