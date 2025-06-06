@@ -148,7 +148,7 @@ void reconnectMQTT() {
 void publishAggregatedData() {
   if (!mqttClient.connected()) {
     reconnectMQTT();
-    if (!mqttClient.connected()) { // Se ainda não conectou, desiste por agora
+    if (!mqttClient.connected()) {
         Serial.println("Não foi possível conectar ao MQTT para publicar.");
         return;
     }
@@ -158,27 +158,27 @@ void publishAggregatedData() {
   unsigned long current_time = millis();
 
   for (auto const& [key_id, val_data] : aggregated_data) {
-    // Verifica se o dado não expirou
     if ((current_time - val_data.timestamp) < TEMPO_EXPIRACAO_DADOS_MS) {
-      // Verifica se os dados são válidos (não -999)
       if (val_data.temperature > -990.0 && val_data.humidity > -990.0) {
-        
-        // Monta os nomes dos feeds dinamicamente
-        String trabalho-final = String(AIO_USERNAME) + "/feeds/" + key_id + "-temp";
-        String trabalho-final2 = String(AIO_USERNAME) + "/feeds/" + key_id + "-hum";
-        String trabalho-final3 = String(AIO_USERNAME) + "/feeds/" + key_id + "-hum";
 
-        // Converte float para string para publicar
+        // Feeds fixos
+        String feed_temp = "Nelsola/feeds/trabalho-final.trabalho";
+        String feed_hum  = "Nelsola/feeds/trabalho-final2.trabalho2";
+        String feed_extra = "Nelsola/feeds/trabalho-final3.trabalho3";
+
         char temp_str[8];
         char hum_str[8];
         dtostrf(val_data.temperature, 4, 1, temp_str);
         dtostrf(val_data.humidity, 4, 1, hum_str);
 
-        // Publica
-        Serial.printf("Publicando para %s: %s\n", trabalho-final.trabalho.c_str(), temp_str);
-        mqttClient.publish(trabalho-final.trabalho.c_str(), temp_str);
+        Serial.printf("Publicando para %s: %s\n", feed_temp.c_str(), temp_str);
+        mqttClient.publish(feed_temp.c_str(), temp_str);
+
         Serial.printf("Publicando para %s: %s\n", feed_hum.c_str(), hum_str);
         mqttClient.publish(feed_hum.c_str(), hum_str);
+
+        // Opcional: publicar em feed_extra
+        // mqttClient.publish(feed_extra.c_str(), "outro dado aqui");
 
       } else {
          Serial.printf("Dados inválidos para %s (Temp=%.1f, Hum=%.1f). Não publicado.\n", 
@@ -186,7 +186,6 @@ void publishAggregatedData() {
       }
     } else {
       Serial.printf("Dados de %s expirados (timestamp: %lu). Não publicado.\n", key_id.c_str(), val_data.timestamp);
-      // Opcional: remover dados expirados do mapa 'aggregated_data'
     }
   }
   Serial.println("-------------------------------------------");
