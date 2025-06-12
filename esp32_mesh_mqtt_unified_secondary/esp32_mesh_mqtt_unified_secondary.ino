@@ -13,7 +13,7 @@
 
 // --- Identificação ÚNICA deste ESP ---
 // !!! MUDE ESTE ID PARA CADA ESP (ex: "esp_sala", "esp_quarto", "esp_cozinha") !!!
-#define DEVICE_ID "esp_2"
+#define DEVICE_ID "esp_1"
 
 // --- Configuração do Sensor Local ---
 #define DHTPIN 4
@@ -24,7 +24,7 @@
 
 // --- Configuração do Nó Principal (Gateway MQTT) ---
 // !!! APENAS UM ESP NA REDE DEVE TER 'true' !!!
-#define IS_PRINCIPAL true
+#define IS_PRINCIPAL false
 
 // --- Intervalos (em milissegundos) ---
 #define INTERVALO_LEITURA_LOCAL_MS 30000  // Ler sensor local a cada 30 segundos
