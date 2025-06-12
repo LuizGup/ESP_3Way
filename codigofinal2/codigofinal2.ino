@@ -37,7 +37,7 @@ unsigned long ultimoTempoID = 0;
 unsigned long ultimoEnvio = 0;
 
 DHT dht(DHTPIN, DHTTYPE);
-bool isMaster = true;
+bool isMaster = false;
 bool espNowAtivo = false;
 bool emModoReceber = true;
 unsigned long ultimoTrocaModo = 0;
