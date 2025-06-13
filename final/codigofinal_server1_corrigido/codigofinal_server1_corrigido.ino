@@ -11,10 +11,12 @@
 #define INTERVALO_ENVIO_MS 10000  
 
 // === CREDENCIAIS WI-FI ===
+// Não são necessárias para os nós não-master, mas mantidas para compatibilidade
 #define WIFI_SSID "EL-BIGODON9305"
 #define WIFI_PASS "333333333"
 
 // === Adafruit IO ===
+// Não são necessárias para os nós não-master, mas mantidas para compatibilidade
 #define IO_USERNAME "LuizGup"
 #define IO_KEY "aio_ilxL72oXYXdX2QW6pRxUls6nOlEp"
 
@@ -37,17 +39,15 @@ unsigned long ultimoTempoID = 0;
 unsigned long ultimoEnvio = 0;
 
 DHT dht(DHTPIN, DHTTYPE);
-bool isMaster = false;
+bool isMaster = false; // Este é o server1, não o master
 bool espNowAtivo = false;
 bool emModoReceber = true;
 unsigned long ultimoTrocaModo = 0;
 const unsigned long INTERVALO_TROCA_MS = 15000;
 
 // === ADAFRUIT IO CLIENT ===
+// Não usado neste ESP, mas mantido para compatibilidade
 AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS);
-
-AdafruitIO_Feed *temperatura = io.feed("temperatura"); //Pub
-AdafruitIO_Feed *umidade = io.feed("umidade"); //Pub
 
 // === FUNÇÕES AUXILIARES ===
 void piscarLED(int tempo = 50) {
@@ -82,54 +82,16 @@ void montarEEnviarInternos() {
   dados.dado04 = 0;
   dados.dado05 = 0;
 
+  Serial.println("--- Dados Locais do Server1 ---");
+  Serial.print("Temperatura: "); Serial.println(dados.dado01);
+  Serial.print("Umidade: "); Serial.println(dados.dado02);
+  Serial.println("-----------------------------\n");
+
   enviarDados(dados, true);
-}
-
-void conectarWiFi() {
-  Serial.println("Conectando ao Wi-Fi...");
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  unsigned long timeout = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - timeout < 5000) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nConectado ao Wi-Fi!");
-  } else {
-    Serial.println("\nFalha na conexão Wi-Fi");
-  }
-}
-
-void enviarParaAdafruit() {
-  Serial.println("Enviando dados para Adafruit...");
-
-  Serial.print("Connecting to Adafruit IO");
-  io.connect();
-
-  // wait for a connection
-  while(io.status() < AIO_CONNECTED) {
-    Serial.print(".");
-    delay(500);
-  }
-  Serial.println("\nConectado ao Adafruit IO!");
-
-if (!temperatura->save((int32_t)dadosRecebidos.dado01)) {
-      Serial.println("Falha ao enviar temperatura");
-    } else {
-      Serial.println("Temperatura enviada com sucesso!");
-    }
-
-if (!umidade->save((int32_t)dadosRecebidos.dado02)) {
-      Serial.println("Falha ao enviar umidade");
-    } else {
-      Serial.println("Umidade enviada com sucesso!");
-    }
 }
 
 // === CALLBACKS ESP-NOW ===
 void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len) {
-
   memcpy(&dadosRecebidos, incomingData, sizeof(dadosRecebidos));
   debugSerial(dadosRecebidos);
 
@@ -159,7 +121,6 @@ void setup() {
   ultimoTrocaModo = millis();
 }
 
-
 void iniciarESPNow() {
   Serial.println("Função Esp Now iniciada");
   esp_now_deinit(); // sempre limpa antes
@@ -187,36 +148,16 @@ void iniciarESPNow() {
   }
 }
 
-
 // === LOOP PRINCIPAL ===
 void loop() {
   unsigned long agora = millis();
   
-
+  // Este bloco não será executado pois isMaster = false
   if (isMaster && agora - ultimoTrocaModo >= INTERVALO_TROCA_MS) {
-    ultimoTrocaModo = agora;
-    emModoReceber = !emModoReceber;
-
-    if (emModoReceber) {
-      Serial.println("Modo: ESP-NOW (recebendo)");
-      WiFi.disconnect(true);
-      WiFi.mode(WIFI_STA);
-      iniciarESPNow();
-    } else {
-      Serial.println("10 segundos de Delay para finaliar os callbacks");
-      delay(10000);
-
-      Serial.println("Modo: Wi-Fi (enviando para Adafruit)");
-      io.run();
-      esp_now_del_peer(broadcastAddress);
-      esp_now_unregister_recv_cb();
-      esp_now_unregister_send_cb();
-      esp_now_deinit();
-      conectarWiFi();
-      enviarParaAdafruit();
-    }
+    // Código do master (não usado aqui)
   }
 
+  // Este bloco será executado pois isMaster = false
   if (!isMaster) {
     if (agora - ultimoEnvio >= INTERVALO_ENVIO_MS) {
       montarEEnviarInternos();
@@ -224,5 +165,5 @@ void loop() {
     }
   }
 
-delay(100);
+  delay(100);
 }

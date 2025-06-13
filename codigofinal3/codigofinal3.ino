@@ -4,13 +4,11 @@
 #include <AdafruitIO_WiFi.h>
 
 // === CONFIGURAÇÕES ===
-#define ID "Master"
+#define ID "server2"
 #define DHTPIN 4
 #define DHTTYPE DHT11
 #define LED_PIN 2
-#define INTERVALO_ENVIO_MS 10000
-#define INTERVALO_TROCA_MS 15000
-#define DEBUG true
+#define INTERVALO_ENVIO_MS 10000  
 
 // === CREDENCIAIS WI-FI ===
 #define WIFI_SSID "EL-BIGODON9305"
@@ -32,19 +30,24 @@ typedef struct dados_esp {
 
 // === VARIÁVEIS GLOBAIS ===
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
 dados_esp dadosRecebidos;
 String ultimoIDRecebido = "";
 unsigned long ultimoTempoID = 0;
 unsigned long ultimoEnvio = 0;
-unsigned long ultimoTrocaModo = 0;
-
-bool isMaster = true;
-bool emModoReceber = true;
 
 DHT dht(DHTPIN, DHTTYPE);
+bool isMaster = false;
+bool espNowAtivo = false;
+bool emModoReceber = true;
+unsigned long ultimoTrocaModo = 0;
+const unsigned long INTERVALO_TROCA_MS = 15000;
+
+// === ADAFRUIT IO CLIENT ===
 AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS);
-AdafruitIO_Feed *temperatura = io.feed("temperatura");
-AdafruitIO_Feed *umidade = io.feed("umidade");
+
+AdafruitIO_Feed *temperatura = io.feed("temperatura"); //Pub
+AdafruitIO_Feed *umidade = io.feed("umidade"); //Pub
 
 // === FUNÇÕES AUXILIARES ===
 void piscarLED(int tempo = 50) {
@@ -54,11 +57,11 @@ void piscarLED(int tempo = 50) {
 }
 
 void debugSerial(const dados_esp& dados) {
-#if DEBUG
   Serial.println("--- Dados Recebidos ---");
-  Serial.printf("ID: %s\nTemp: %d °C\nUmid: %d %%\n", dados.id, dados.dado01, dados.dado02);
+  Serial.print("ID: "); Serial.println(dados.id);
+  Serial.print("dado01 (Temp): "); Serial.println(dados.dado01);
+  Serial.print("dado02 (Umid): "); Serial.println(dados.dado02);
   Serial.println("------------------------\n");
-#endif
 }
 
 void enviarDados(const dados_esp& pacote, bool piscarLongo = false) {
@@ -66,79 +69,109 @@ void enviarDados(const dados_esp& pacote, bool piscarLongo = false) {
   piscarLED(piscarLongo ? 300 : 50);
 }
 
-bool montarPacoteSensor(dados_esp& dados) {
-  float temp = dht.readTemperature();
-  float umid = dht.readHumidity();
-  if (isnan(temp) || isnan(umid)) return false;
-
+void montarEEnviarInternos() {
+  dados_esp dados;
   strcpy(dados.id, ID);
-  dados.dado01 = (int)temp;
-  dados.dado02 = (int)umid;
-  dados.dado03 = dados.dado04 = dados.dado05 = 0;
-  return true;
+
+  float temperatura = dht.readTemperature();
+  float umidade = dht.readHumidity();
+
+  dados.dado01 = isnan(temperatura) ? 0 : (int)temperatura;
+  dados.dado02 = isnan(umidade) ? 0 : (int)umidade;
+  dados.dado03 = 0;
+  dados.dado04 = 0;
+  dados.dado05 = 0;
+
+  enviarDados(dados, true);
 }
 
 void conectarWiFi() {
+  Serial.println("Conectando ao Wi-Fi...");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long timeout = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - timeout < 5000) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println(WiFi.status() == WL_CONNECTED ? "\nWi-Fi conectado!" : "\nFalha na conexão Wi-Fi.");
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConectado ao Wi-Fi!");
+  } else {
+    Serial.println("\nFalha na conexão Wi-Fi");
+  }
 }
 
 void enviarParaAdafruit() {
   Serial.println("Enviando dados para Adafruit...");
+
+  Serial.print("Connecting to Adafruit IO");
   io.connect();
-  unsigned long timeout = millis();
-  while (io.status() < AIO_CONNECTED && millis() - timeout < 5000) {
+
+  // wait for a connection
+  while(io.status() < AIO_CONNECTED) {
     Serial.print(".");
     delay(500);
   }
-
-  if (io.status() != AIO_CONNECTED) {
-    Serial.println("\nFalha ao conectar no Adafruit IO!");
-    return;
-  }
   Serial.println("\nConectado ao Adafruit IO!");
 
-  if (!temperatura->save(dadosRecebidos.dado01)) Serial.println("Erro ao enviar temperatura");
-  else Serial.println("Temperatura enviada!");
+if (!temperatura->save((int32_t)dadosRecebidos.dado01)) {
+      Serial.println("Falha ao enviar temperatura");
+    } else {
+      Serial.println("Temperatura enviada com sucesso!");
+    }
 
-  if (!umidade->save(dadosRecebidos.dado02)) Serial.println("Erro ao enviar umidade");
-  else Serial.println("Umidade enviada!");
+if (!umidade->save((int32_t)dadosRecebidos.dado02)) {
+      Serial.println("Falha ao enviar umidade");
+    } else {
+      Serial.println("Umidade enviada com sucesso!");
+    }
 }
 
 // === CALLBACKS ESP-NOW ===
 void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len) {
+
   memcpy(&dadosRecebidos, incomingData, sizeof(dadosRecebidos));
   debugSerial(dadosRecebidos);
 
   if (String(dadosRecebidos.id) != ID) {
     unsigned long agora = millis();
-    if (ultimoIDRecebido != dadosRecebidos.id || (agora - ultimoTempoID > 5000)) {
-      ultimoIDRecebido = dadosRecebidos.id;
+    if (ultimoIDRecebido != String(dadosRecebidos.id) || (agora - ultimoTempoID > 5000)) {
+      ultimoIDRecebido = String(dadosRecebidos.id);
       ultimoTempoID = agora;
-      enviarDados(dadosRecebidos);
+      enviarDados(dadosRecebidos, false);
     }
   }
 }
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  // Silencioso
 }
 
+// === SETUP ===
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_PIN, OUTPUT);
+  dht.begin();
+
+  WiFi.mode(WIFI_STA);
+  iniciarESPNow();
+
+  ultimoEnvio = millis();
+  ultimoTrocaModo = millis();
+}
+
+
 void iniciarESPNow() {
-  Serial.println("Iniciando ESP-NOW");
-  esp_now_deinit();
+  Serial.println("Função Esp Now iniciada");
+  esp_now_deinit(); // sempre limpa antes
+
   if (esp_now_init() != ESP_OK) {
-    Serial.println("Erro ao iniciar ESP-NOW");
+    Serial.println("Erro ao reiniciar ESP-NOW");
     return;
   }
 
   esp_now_unregister_recv_cb();
   esp_now_unregister_send_cb();
+
   esp_now_register_send_cb(OnDataSent);
   esp_now_register_recv_cb(OnDataRecv);
 
@@ -154,54 +187,42 @@ void iniciarESPNow() {
   }
 }
 
-// === SETUP E LOOP ===
-void setup() {
-  Serial.begin(115200);
-  pinMode(LED_PIN, OUTPUT);
-  dht.begin();
 
-  WiFi.mode(WIFI_STA);
-  iniciarESPNow();
-
-  ultimoEnvio = millis();
-  ultimoTrocaModo = millis();
-}
-
+// === LOOP PRINCIPAL ===
 void loop() {
   unsigned long agora = millis();
+  
 
   if (isMaster && agora - ultimoTrocaModo >= INTERVALO_TROCA_MS) {
     ultimoTrocaModo = agora;
     emModoReceber = !emModoReceber;
 
     if (emModoReceber) {
-      Serial.println(">> Modo: ESP-NOW (Recebendo)");
+      Serial.println("Modo: ESP-NOW (recebendo)");
       WiFi.disconnect(true);
       WiFi.mode(WIFI_STA);
       iniciarESPNow();
     } else {
-      Serial.println(">> Esperando 10s antes de desconectar callbacks...");
+      Serial.println("10 segundos de Delay para finaliar os callbacks");
       delay(10000);
 
-      Serial.println(">> Modo: Wi-Fi (Enviando para Adafruit)");
+      Serial.println("Modo: Wi-Fi (enviando para Adafruit)");
       io.run();
-      esp_now_deinit();
+      esp_now_del_peer(broadcastAddress);
       esp_now_unregister_recv_cb();
       esp_now_unregister_send_cb();
+      esp_now_deinit();
       conectarWiFi();
       enviarParaAdafruit();
     }
   }
 
-  if (!isMaster && agora - ultimoEnvio >= INTERVALO_ENVIO_MS) {
-    dados_esp dados;
-    if (montarPacoteSensor(dados)) {
-      enviarDados(dados, true);
-    } else {
-      Serial.println("Falha na leitura do DHT!");
+  if (!isMaster) {
+    if (agora - ultimoEnvio >= INTERVALO_ENVIO_MS) {
+      montarEEnviarInternos();
+      ultimoEnvio = agora;
     }
-    ultimoEnvio = agora;
   }
 
-  delay(100);
+delay(100);
 }
