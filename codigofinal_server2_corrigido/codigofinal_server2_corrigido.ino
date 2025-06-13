@@ -12,13 +12,13 @@
 
 // === CREDENCIAIS WI-FI ===
 // Não são necessárias para os nós não-master, mas mantidas para compatibilidade
-#define WIFI_SSID "EL-BIGODON9305"
-#define WIFI_PASS "333333333"
+#define WIFI_SSID "REPLACE_ME"
+#define WIFI_PASS "REPLACE_ME"
 
 // === Adafruit IO ===
 // Não são necessárias para os nós não-master, mas mantidas para compatibilidade
-#define IO_USERNAME "LuizGup"
-#define IO_KEY "aio_ilxL72oXYXdX2QW6pRxUls6nOlEp"
+#define IO_USERNAME "REPLACE_ME"
+#define IO_KEY "REPLACE_ME"
 
 // === STRUCT DE DADOS ===
 typedef struct dados_esp {

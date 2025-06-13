@@ -11,12 +11,12 @@
 #define INTERVALO_ENVIO_MS 10000  
 
 // === CREDENCIAIS WI-FI ===
-#define WIFI_SSID "EL-BIGODON9305"
-#define WIFI_PASS "333333333"
+#define WIFI_SSID "REPLACE_ME"
+#define WIFI_PASS "REPLACE_ME"
 
 // === Adafruit IO ===
-#define IO_USERNAME "LuizGup"
-#define IO_KEY "aio_ilxL72oXYXdX2QW6pRxUls6nOlEp"
+#define IO_USERNAME "REPLACE_ME"
+#define IO_KEY "REPLACE_ME"
 
 // === STRUCT DE DADOS ===
 typedef struct dados_esp {
